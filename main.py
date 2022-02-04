@@ -19,6 +19,17 @@ from pprint import pprint
 
 class VK:
     url = 'https://api.vk.com/method/'
+    try:
+        pass
+    except requests.HTTPError as err:
+        code = err.response.status_code
+        print(f'Код ошибки: {code}')
+    else:
+        # Отработает если у нас нет исключений
+        # print("Все прошло успешно исключений нет")
+        pass
+    finally:
+        pass
 
     # нельзя использовать токен группы, только токен пользователя (приложения)
     def __init__(self, token, version):
@@ -34,11 +45,15 @@ class VK:
             'country_id': 1,
             'count': 100
         }
-        req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
-        for item in req['response']['items']:
-            _region = item['region'].split(' ')[0].lower()
-            if item['title'].lower() == city.lower() and _region == region.lower():
-                return item['id']
+        # req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
+        response = requests.get(url=group_search_url, params={**self.params, **group_search_params})
+        req = response.json()
+        response.raise_for_status()
+        if response.status_code == 200:
+            for item in req['response']['items']:
+                _region = item['region'].split(' ')[0].lower()
+                if item['title'].lower() == city.lower() and _region == region.lower():
+                    return item['id']
 
     def get_people_list(self, find_param):
         group_search_url = self.url + 'users.search'
@@ -50,8 +65,12 @@ class VK:
             'relation': find_param['семейное положение'],
             'fields': 'is_no_index, is_closed, can_access_closed, city, home_town, sex, status, photo, relation'
         }
-        req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
-        return req['response']['items']
+        # req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
+        response = requests.get(url=group_search_url, params={**self.params, **group_search_params})
+        req = response.json()
+        response.raise_for_status()
+        if response.status_code == 200:
+            return req['response']['items']
 
     def get_user_get(self, user_ids):
         # 'https://vk.com/' + domain
@@ -63,8 +82,12 @@ class VK:
             'user_ids': user_ids,
             'fields': 'is_closed, domain, friend_status, has_photo, is_friend, screen_name, site, photo, relation'
         }
-        req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
-        return req['response']['items']
+        # req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
+        response = requests.get(url=group_search_url, params={**self.params, **group_search_params})
+        req = response.json()
+        response.raise_for_status()
+        if response.status_code == 200:
+            return req['response']['items']
 
     def photos_get(self, album, ext=0, owner_id=None):
         """
@@ -82,8 +105,12 @@ class VK:
             'extended': ext,
             'owner_id': owner_id
         }
-        req = requests.get(url=photos_get_url, params={**self.params, **photos_get_params}).json()
-        return req['response']['items']
+        # req = requests.get(url=photos_get_url, params={**self.params, **photos_get_params}).json()
+        response = requests.get(url=photos_get_url, params={**self.params, **photos_get_params})
+        req = response.json()
+        response.raise_for_status()
+        if response.status_code == 200:
+            return req['response']['items']
 
     def get_contact_information(self, user_id):
         # можно получить данные о нескольких пользователях,
@@ -94,8 +121,12 @@ class VK:
             'fields': 'is_closed, can_access_closed, bdate, city, country, '
                       'first_name_, home_town, last_name_, relation, sex, status, photo'
         }
-        req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
-        return req['response']
+        # req = requests.get(url=group_search_url, params={**self.params, **group_search_params}).json()
+        response = requests.get(url=group_search_url, params={**self.params, **group_search_params})
+        req = response.json()
+        response.raise_for_status()
+        if response.status_code == 200:
+            return req['response']
 
 
 class ChatBot:
@@ -142,16 +173,17 @@ user_data_master = {
     'first_name': '',
     'home_town': '',
     'last_name': '',
-    'relation': -1,
-    'sex': -1,
+    'relation': 0,
+    'sex': 0,
     'status': '',
     'photo': '',
     'schools': []
 }
 
 
-sex_list = {1: 'женский', 2: 'мужской'}
+sex_list = {0: 'не указано', 1: 'женский', 2: 'мужской'}
 relation_list = {
+    0: 'не указано',
     1: 'не женат/не замужем',
     2: 'есть друг/есть подруга',
     3: 'помолвлен/помолвлена',
@@ -161,28 +193,6 @@ relation_list = {
     7: 'влюблён/влюблена',
     8: 'в гражданском браке',
 }
-
-
-# def get_tokens():
-#     print(f'Запрашиваем токен от пользователя\n ----')
-#     token_vk = input('Введите ТОКЕН: ')
-#     token = input('Token: ')
-
-
-def find_people_matching_conditions():
-    # найти людей, соответствующих условиям
-    people_data = vk_client.get_people_list()
-    for item in people_data:
-        if 'relation' in item:
-            print(f"{item['first_name']} {item['last_name']} relation:{item['relation']}")
-        else:
-            print(f"{item['first_name']} {item['last_name']}")
-
-
-# def contact_information(user_id):
-#     # получить данные собеседника
-#     vk_client = VK(token_group, '5.131')
-#     return vk_client.get_contact_information(user_id)
 
 
 def create_message_help(recipient):
@@ -207,7 +217,7 @@ def create_message_help(recipient):
 def create_message_help_new():
     return f"Для ввода критериев поиска введи строку:\n" \
            f"/найди возраст_от возраст_до пол город регион семейное_положение\n" \
-           f"   например: /найди 25 30 1 Москва 6\n" \
+           f"   например: /найди 25 30 1 Москва Московская 6\n" \
            f"   --------------------------\n" \
            f"   варианты пол\n" \
            f"   1 - женский;\n" \
@@ -300,14 +310,18 @@ def added_user_orm(user_id, user_data):
     if user is None:
         # print(f'+пользователь {user_id} НЕ найден в базе пользователей')
         # его нужно добавить в таблицу users и таблицу customers
-        # в параметре user_data гораздо больше данных,
-        # а мы добавляем всего три поля (сделано для пробы и тк и не расширено)
+        # relation = relation_list_enum[user_data['relation']]
+        # sex = relation_list_enum[user_data['sex']]
         new_user = Users(user_id=user_data['id'],
                          first_name=user_data['first_name'],
                          last_name=user_data['last_name'],
-                         relation=EnumRelations(user_data['relation']).value,
-                         sex=EnumSex(user_data['sex']).value,
+                         id_city=user_data['city'],
+                         bdate=user_data['bdate'],
+                         is_closed=user_data['is_closed'],
+                         id_relation=EnumRelations(user_data['relation']).name,
+                         id_sex=EnumSex(user_data['sex']).name,
                          )
+        # id_relation = EnumRelations(user_data['relation']).value,
         session.add(new_user)
         # после добавления пользователя, нужно сделать commit() потому что пока запись не внесена в
         # таблицу, у нее нет id, и в связанной таблице вместо значения id будет NULL
@@ -475,6 +489,7 @@ def talk_with_chatbot():
     # # Подключаем токен и longpoll ------------
     chat_bot = ChatBot(token_group)
     longpoll = chat_bot.connect_longpoll()
+    # longpoll.session.
     # Слушаем longpoll(Сообщения)
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW:
@@ -516,8 +531,8 @@ def talk_with_chatbot():
                         #     id_user = added_user_orm(user_id)
                         id_user = added_user_orm(user_id, user_chat)
                         added_customer_orm(id_user, user_id)
-                        # message = create_message_help_new()
-                        # chat_bot.write_msg(user_id, message, 'attachment')
+                        message = create_message_help_new()
+                        chat_bot.write_msg(user_id, message, 'attachment')
                     elif command == 'мой':
                         # обработка команд получения данных о пользователе
                         print('# обработка команд получние данных о пользователе')
@@ -537,12 +552,20 @@ def talk_with_chatbot():
                             message = create_message_help_new()
                             chat_bot.write_msg(user_id, message, 'attachment')
                         else:
-                            find_msg, find_param = get_search_parameters(argument)
-                            # пишем список параметров которые мы приняли
-                            chat_bot.write_msg(user_id, find_msg, 'attachment')
-                            message, msg_attach = candidate_list_processing(user_id, user_chat, find_param)
-                            chat_bot.write_msg(user_id, message, msg_attach)
-
+                            if len(argument) == 6:
+                                if argument[0].isdigit() and argument[1].isdigit() and \
+                                        argument[2].isdigit() and argument[5].isdigit():
+                                    find_msg, find_param = get_search_parameters(argument)
+                                    # пишем список параметров которые мы приняли
+                                    chat_bot.write_msg(user_id, find_msg, 'attachment')
+                                    message, msg_attach = candidate_list_processing(user_id, user_chat, find_param)
+                                    chat_bot.write_msg(user_id, message, msg_attach)
+                                else:
+                                    message = f'Последовательность параметров нарушена, повторите ввод'
+                                    chat_bot.write_msg(user_id, message, 'attachment')
+                            else:
+                                message = f'Вы ввели не все параметры, повторите ввод'
+                                chat_bot.write_msg(user_id, message, 'attachment')
                     # chat_bot.write_msg(user_id, "вошли в обработку команд", 'attachment')
                 elif request == "привет":
                     message = f"Привет, {user_chat['first_name']}\n" \

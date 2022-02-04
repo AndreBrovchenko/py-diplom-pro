@@ -11,28 +11,17 @@ alter database vkinder owner to user_vkinder;
 -- # входим в режим управления от пользователя user_vkinder (БД vkinder)
 psql -U user_vkinder vkinder
 -- # -----------------
-create table cities (
-id_city serial primary key,
-id integer not null,
-city varchar(50) not null 
-);
--- # -----------------
 create table countries (
 id_country serial primary key,
 id integer not null,
 country varchar(50) not null 
 );
 -- # -----------------
-create table relations (
-id_relation serial primary key,
+create table cities (
+id_city serial primary key,
 id integer not null,
-relation varchar(50) not null 
-);
--- # -----------------
-create table sex (
-id_sex serial primary key,
-id integer not null,
-sex varchar(20) not null 
+city varchar(50) not null,
+id_country integer references countries (id_country)
 );
 -- # -----------------
 create table users (
@@ -41,11 +30,10 @@ user_id integer not null,
 first_name varchar(50) not null,
 last_name varchar(50),
 id_city integer references cities (id_city),
-id_country integer references countries (id_country),
 bdate varchar(10),
 is_closed boolean,
-id_relation integer references relations (id_relation),
-id_sex integer references sex (id_sex)
+id_relation varchar(30),
+id_sex varchar(30)
 );
 -- # -----------------
 create table customers (
