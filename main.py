@@ -2,7 +2,7 @@ import time
 from random import randrange
 import vk_api
 from vk_api.longpoll import VkLongPoll, VkEventType
-from application.db.work_with_database import Session, EnumRelations, EnumSex
+from application.db.work_with_database import Session, EnumRelations, EnumSex, Base, engine
 from application.db.work_with_database import Users, Customers, Candidates
 from name_var import token_app, token_group
 import requests
@@ -34,33 +34,40 @@ class VK:
         return result['response']
 
     def get_cities(self, city, region):
-        group_search_url = self.url + 'database.getCities'
-        group_search_params = {
+        city_search_url = self.url + 'database.getCities'
+        city_search_params = {
             'q': city,
             'country_id': 1,
             'count': 100
         }
-        result = self.getvk(url=group_search_url, new_params=group_search_params)
+        result = self.getvk(url=city_search_url, new_params=city_search_params)
+        item_temp = 0
         for item in result['items']:
+            if item.get('region') is None:
+                item_temp = item['id']
+                break
             _region = item['region'].split(' ')[0].lower()
             if item['title'].lower() == city.lower() and _region == region.lower():
-                return item['id']
-        return None
+                item_temp = item['id']
+                break
+        if result is None:
+            return None
+        return item_temp
 
     def user_get(self, search_string):
-        group_search_url = self.url + 'users.search'
-        group_search_params = {
+        users_search_url = self.url + 'users.search'
+        users_search_params = {
             'q': search_string,
             'count': 1
         }
-        result = self.getvk(url=group_search_url, new_params=group_search_params)
+        result = self.getvk(url=users_search_url, new_params=users_search_params)
         if result is None:
             return None
         return result['items']
 
     def get_people_list(self, find_param):
-        group_search_url = self.url + 'users.search'
-        group_search_params = {
+        users_search_url = self.url + 'users.search'
+        users_search_params = {
             'age_from': find_param['возраст от'],
             'age_to': find_param['возраст до'],
             'sex': find_param['пол'],
@@ -69,17 +76,17 @@ class VK:
             'fields': 'bdate, is_no_index, is_closed, can_access_closed, '
                       'city, home_town, sex, status, photo, relation'
         }
-        result = self.getvk(url=group_search_url, new_params=group_search_params)
+        result = self.getvk(url=users_search_url, new_params=users_search_params)
         return result['items']
 
     def get_user_get(self, user_ids):
-        group_search_url = self.url + 'users.get'
-        group_search_params = {
+        users_get_url = self.url + 'users.get'
+        users_get_params = {
             'user_ids': user_ids,
             'fields': 'bdate, is_closed, domain, friend_status, has_photo, '
                       'is_friend, screen_name, site, photo, relation'
         }
-        result = self.getvk(url=group_search_url, new_params=group_search_params)
+        result = self.getvk(url=users_get_url, new_params=users_get_params)
         return result['items']
 
     def photos_get(self, album, ext=0, owner_id=None):
@@ -102,13 +109,13 @@ class VK:
         return result['items']
 
     def get_contact_information(self, user_id):
-        group_search_url = self.url + 'users.get'
-        group_search_params = {
+        users_get_url = self.url + 'users.get'
+        users_get_params = {
             'user_ids': user_id,
             'fields': 'is_closed, can_access_closed, bdate, city, country, '
                       'first_name_, home_town, last_name_, relation, sex, status, photo'
         }
-        return self.getvk(url=group_search_url, new_params=group_search_params)
+        return self.getvk(url=users_get_url, new_params=users_get_params)
 
 
 class ChatBot:
@@ -146,7 +153,7 @@ user_data_master = {
     'is_closed': False,
     'can_access_closed': False,
     'bdate': '',
-    'city': -1,
+    'city': {'id': -1, 'title': ''},
     'country': -1,
     'first_name': '',
     'home_town': '',
@@ -203,13 +210,11 @@ def added_customer_orm(id_user, user_id):
         Users.user_id == user_id).first()
     if user_in_customer is None:
         print(f'+пользователя {user_id} нет в базе customers')
-        new_customer = Customers(id_user=id_user)
-        session.add(new_customer)
+        user_in_customer = Customers(id_user=id_user)
+        session.add(user_in_customer)
         session.commit()
         print(f'+пользователь {user_id} добавлен в базу customers')
-        return new_customer.id_customer
-    else:
-        return user_in_customer.id_customer
+    return user_in_customer.id_customer
 
 
 def find_candidate_orm(id_user, user_id):
@@ -229,21 +234,20 @@ def added_user_orm(user_id, user_data):
     user = session.query(Users).filter(Users.user_id == user_id).first()
     if user is None:
         print(f'+пользователь {user_id} НЕ найден в базе пользователей')
-        new_user = Users(user_id=user_data['id'],
-                         first_name=user_data['first_name'],
-                         last_name=user_data['last_name'],
-                         id_city=user_data['city']['id'],
-                         bdate=user_data['bdate'],
-                         is_closed=user_data['is_closed'],
-                         id_relation=EnumRelations(user_data['relation']).name,
-                         id_sex=EnumSex(user_data['sex']).name,
-                         )
-        session.add(new_user)
+        user = Users(user_id=user_data['id'],
+                     first_name=user_data['first_name'],
+                     last_name=user_data['last_name'],
+                     id_city=user_data['city']['id'],
+                     bdate=user_data['bdate'],
+                     is_closed=user_data['is_closed'],
+                     id_relation=EnumRelations(user_data['relation']).name,
+                     id_sex=EnumSex(user_data['sex']).name,
+                     )
+        session.add(user)
         session.commit()
-        return new_user.id_user
     else:
         print(f'+пользователь {user_id} найден в базе пользователей')
-        return user.id_user
+    return user.id_user
 
 
 def get_search_parameters(argument, token):
@@ -265,7 +269,7 @@ def get_search_parameters(argument, token):
     vk_client = VK(token, '5.131')
     id_city = vk_client.get_cities(find_param['город'], find_param['регион'])
     if id_city is None:
-        return None, None
+        find_msg = ''
     find_param['город'] = id_city
     find_param['семейное положение'] = int(find_param['семейное положение'])
     return find_msg, find_param
@@ -277,6 +281,7 @@ def candidate_list_processing(user_id, user_chat, find_param, token):
     people_data = vk_client.get_people_list(find_param)
     id_user = added_user_orm(user_id, user_chat)
     id_customer = added_customer_orm(id_user, user_id)
+    msg_attachment = ''
     for item in people_data:
         if item['is_closed']:
             continue
@@ -294,10 +299,9 @@ def candidate_list_processing(user_id, user_chat, find_param, token):
             adding_customers_and_candidates(id_customer, candidate_id_user)
             candidate_user_url = 'https://vk.com/id' + str(candidate_user_id)
             result_token = user_dictionary_processing_online(user_id)
-            if result_token == '':
+            if not result_token:
                 result_token = token_app
             tuple_photos = photo_list_processing(candidate_user_id, result_token)
-            msg_attachment = ''
             for item_attach in tuple_photos:
                 msg_attachment += f"photo{item_attach[3]}_{item_attach[2]},"
             msg_attachment = msg_attachment.rstrip(',')
@@ -348,16 +352,15 @@ def find_command_processing(user_id, user_chat, argument):
             if argument[0].isdigit() and argument[1].isdigit() and \
                     argument[2].isdigit() and argument[5].isdigit():
                 result_token = user_dictionary_processing_online(user_id)
-                if result_token == '':
+                if not result_token:
                     result_token = token_app
                 find_msg, find_param = get_search_parameters(argument, result_token)
                 if find_param is not None:
                     chat_bot.write_msg(user_id, find_msg, 'attachment')
                     result_token = user_dictionary_processing_online(user_id)
-                    if result_token == '':
+                    if not result_token:
                         result_token = token_app
-                    message, msg_attach = candidate_list_processing(
-                        user_id, user_chat, find_param, result_token)
+                    message, msg_attach = candidate_list_processing(user_id, user_chat, find_param, result_token)
                     if message is not None:
                         chat_bot.write_msg(user_id, message, msg_attach)
                     else:
@@ -381,7 +384,7 @@ def user_dictionary_processing_online(user_id, user_token=''):
     current_time = int(time.time())
     if user_id in user_token_tuple:
         tmp_user_token, tmp_time_user = user_token_tuple[user_id]
-        if user_token == '':
+        if not user_token:
             user_token = tmp_user_token
     user_token_tuple[user_id] = [user_token, current_time]
     return user_token
@@ -434,6 +437,7 @@ def command_processing(user_id, user_chat, request):
 
 def main():
     # поговорить с чат-ботом
+    Base.metadata.create_all(engine)
     for event in longpoll.listen():
         if event.type == VkEventType.MESSAGE_NEW and event.to_me:
             request = event.text.lower()
@@ -443,7 +447,7 @@ def main():
             user = chat_bot.get_user_get(user_id)[0]
             user_chat = user_data_master.copy()
             user_chat.update(user)
-            if request[0] == '/':
+            if request.startswith('/'):
                 command_processing(user_id, user_chat, request)
             elif request == "привет":
                 message = f"Привет, {user_chat['first_name']}\n" \

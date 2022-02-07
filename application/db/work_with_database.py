@@ -6,7 +6,6 @@ from sqlalchemy.orm import sessionmaker, relationship
 
 Base = declarative_base()
 engine = sq.create_engine(database_name)
-Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 
 
@@ -32,13 +31,11 @@ class Users(Base):
     __tablename__ = 'users'
     id_user = sq.Column(sq.Integer, primary_key=True)
     user_id = sq.Column(sq.Integer, nullable=False)
-    first_name = sq.Column(sq.String(50), nullable=False, unique=True)
-    last_name = sq.Column(sq.String(50), nullable=False, unique=True)
-    # id_city = sq.Column(sq.Integer, sq.ForeignKey('cities.id_city'))
+    first_name = sq.Column(sq.String(50), nullable=False)
+    last_name = sq.Column(sq.String(50), nullable=False)
     id_city = sq.Column(sq.Integer, nullable=False)
-    # city = relationship('Cities', backref='users')
-    bdate = sq.Column(sq.String(10), nullable=False, unique=True)
-    is_closed = sq.Column(sq.Boolean, nullable=False, unique=True)
+    bdate = sq.Column(sq.String(10), nullable=False)
+    is_closed = sq.Column(sq.Boolean, nullable=False)
     id_relation = sq.Column(sq.Enum(EnumRelations))
     id_sex = sq.Column(sq.Enum(EnumSex))
 
